@@ -1,0 +1,16 @@
+[package]
+name = "formatcraft-cli"
+description = "Command-line FormatCraft: convert files and run automation scripts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+formatcraft-engine.workspace = true
+formatcraft-automation.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,24 @@
+FormatCraft
+Copyright (c) 2026 FormatCraft contributors
+Licensed under MIT OR Apache-2.0 (see LICENSE-MIT and LICENSE-APACHE).
+
+This product includes:
+
+* Lucide icon font (assets/fonts/lucide.ttf), lucide-static 1.52.0,
+  Copyright (c) Lucide Icons and Contributors, ISC License
+  (assets/fonts/LICENSE-lucide.txt). Parts derived from Feather,
+  Copyright (c) 2013-2023 Cole Bemis, MIT License.
+
+* egui default fonts, bundled by the epaint_default_fonts crate:
+  Ubuntu-Light (Ubuntu Font Licence 1.0), Hack (MIT / Bitstream Vera),
+  Noto Emoji (OFL-1.1), emoji-icon-font (MIT).
+
+Release packages also contain FFmpeg (https://ffmpeg.org), which is a
+separate program licensed under the GNU GPL. FormatCraft does not link
+to FFmpeg: it starts the bundled `ffmpeg`/`ffprobe` executables as
+separate processes. The FFmpeg licence and a pointer to its source code
+are shipped next to the binaries (ffmpeg/LICENSE.txt, ffmpeg/SOURCE.txt).
+
+FormatCraft is an independent project. It is not affiliated with,
+endorsed by or derived from Format Factory or PCFreetime; no code,
+icons or other assets from that product are used.

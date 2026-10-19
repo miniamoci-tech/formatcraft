@@ -1,0 +1,28 @@
+[package]
+name = "formatcraft"
+description = "FormatCraft: convert video, audio, images and PDFs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+formatcraft-engine.workspace = true
+eframe.workspace = true
+rfd.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+image.workspace = true
+sys-locale.workspace = true
+
+[build-dependencies]
+winresource = "0.1.34"
+
+[package.metadata.winresource]
+ProductName = "FormatCraft"
+FileDescription = "FormatCraft media converter"
+LegalCopyright = "FormatCraft contributors, MIT OR Apache-2.0"
+
+[lints]
+workspace = true

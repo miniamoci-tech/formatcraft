@@ -1,0 +1,20 @@
+[package]
+name = "formatcraft-automation"
+description = "Headless tool table for FormatCraft (used by formatcraft-cli run)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+formatcraft-engine.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+image.workspace = true
+
+[lints]
+workspace = true

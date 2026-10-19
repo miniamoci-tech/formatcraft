@@ -1,0 +1,167 @@
+# Format Factory feature parity. status: shipped | partial | planned
+# "shipped" = works end to end and a test proves it (evidence).
+# Feature list from Format Factory's public website/documentation only.
+
+[[feature]]
+id = "video.convert"
+name = "Convert video (MP4/MKV/WebM/AVI/MOV/WMV/FLV/MPG/3GP/OGV/TS)"
+status = "shipped"
+tool = "convert"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::video_audio_pipeline"
+notes = "3GP and OGV depend on the FFmpeg build having h263/libtheora; 3GP AMR audio needs libopencore_amrnb."
+
+[[feature]]
+id = "video.gif"
+name = "Video to animated GIF / WebP"
+status = "shipped"
+tool = "convert"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::video_audio_pipeline (gif); args::tests::gif_uses_palette_and_defaults"
+notes = "Palette-optimised GIF, default 480 px wide at 12 fps."
+
+[[feature]]
+id = "video.options"
+name = "Output settings: quality, resolution, fps, bitrate, trim, crop, rotate, speed, volume, remove audio"
+status = "shipped"
+tool = "convert"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::video_audio_pipeline"
+
+[[feature]]
+id = "video.watermark"
+name = "Image watermark"
+status = "shipped"
+tool = "convert"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::video_audio_pipeline"
+notes = "Text watermarks are not available yet (need a bundled, attributed font)."
+
+[[feature]]
+id = "video.subtitles"
+name = "Add / burn subtitles"
+status = "planned"
+notes = "Needs libass in the FFmpeg build and a bundled font."
+
+[[feature]]
+id = "audio.convert"
+name = "Convert / extract audio (MP3/AAC/M4A/M4R/WAV/FLAC/OGG/Opus/WMA/AIFF/AC3/MP2/AMR/WavPack)"
+status = "shipped"
+tool = "convert"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::video_audio_pipeline"
+notes = "AMR needs libopencore_amrnb in the FFmpeg build; APE output is not supported by FFmpeg."
+
+[[feature]]
+id = "image.convert"
+name = "Convert images (JPG/PNG/WebP/BMP/GIF/TIFF/ICO/TGA/QOI/PPM), resize, rotate, grayscale"
+status = "shipped"
+tool = "convert_image"
+evidence = "crates/engine/src/image_conv.rs::tests::converts_to_every_image_format"
+notes = "HEIC/AVIF/PSD input is decoded through FFmpeg when available. WebP output is lossless."
+
+[[feature]]
+id = "pdf.merge"
+name = "Merge PDF"
+status = "shipped"
+tool = "pdf_merge"
+evidence = "crates/engine/src/pdf.rs::tests::images_merge_split_compress_roundtrip"
+notes = "Bookmarks and forms of the inputs are not carried over."
+
+[[feature]]
+id = "pdf.split"
+name = "Split PDF into pages"
+status = "shipped"
+tool = "pdf_split"
+evidence = "crates/engine/src/pdf.rs::tests::images_merge_split_compress_roundtrip"
+
+[[feature]]
+id = "pdf.compress"
+name = "Compress PDF"
+status = "partial"
+tool = "pdf_compress"
+evidence = "crates/engine/src/pdf.rs::tests::images_merge_split_compress_roundtrip"
+notes = "Recompresses streams and drops unused objects; does not downsample images yet."
+
+[[feature]]
+id = "pdf.from_images"
+name = "Images to PDF"
+status = "shipped"
+tool = "images_to_pdf"
+evidence = "crates/automation/src/lib.rs::tests::script_runs_image_and_pdf_tools"
+
+[[feature]]
+id = "pdf.to_images_text_word"
+name = "PDF to image / text / Word / HTML"
+status = "planned"
+notes = "Needs a permissively licensed PDF renderer and text extraction."
+
+[[feature]]
+id = "util.join_video"
+name = "Video joiner (mixed sizes, missing audio filled with silence)"
+status = "shipped"
+tool = "join"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::join_mux_split"
+
+[[feature]]
+id = "util.join_audio"
+name = "Audio joiner"
+status = "shipped"
+tool = "join"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::join_mux_split"
+
+[[feature]]
+id = "util.mux"
+name = "Mux (replace a video's audio)"
+status = "shipped"
+tool = "mux"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::join_mux_split"
+
+[[feature]]
+id = "util.split"
+name = "Split media into parts"
+status = "shipped"
+tool = "split"
+evidence = "crates/engine/tests/ffmpeg_e2e.rs::join_mux_split"
+notes = "Stream copy, so cuts land on keyframes."
+
+[[feature]]
+id = "util.screen_record"
+name = "Screen recorder"
+status = "partial"
+tool = "screen_record"
+evidence = "crates/engine/src/args.rs (argument building only)"
+notes = "gdigrab (Windows), avfoundation (macOS), x11grab (Linux). Not covered by an automated test (needs a desktop session); system-audio capture on Windows not yet."
+
+[[feature]]
+id = "util.media_info"
+name = "Media file information"
+status = "shipped"
+tool = "probe"
+evidence = "crates/engine/src/probe.rs::tests::parses_typical_output"
+
+[[feature]]
+id = "rom.dvd_cd_iso"
+name = "DVD/CD ripping, ISO/CSO tools"
+status = "planned"
+notes = "Out of scope for 0.1; DVD ripping needs libdvdcss which cannot be bundled."
+
+[[feature]]
+id = "util.downloader"
+name = "Online video downloader"
+status = "planned"
+notes = "Deliberately not planned for now: the app makes no network connections (AGENTS.md §3)."
+
+[[feature]]
+id = "app.queue"
+name = "Task list with parallel workers, progress, stop, retry"
+status = "shipped"
+evidence = "crates/engine/src/queue.rs::tests::processes_image_jobs_and_reports_failures"
+
+[[feature]]
+id = "app.dragdrop"
+name = "Drag & drop and 'Open with' files"
+status = "shipped"
+notes = "Checked manually in the running app (screenshots in the PR)."
+
+[[feature]]
+id = "app.i18n"
+name = "Interface languages"
+status = "partial"
+evidence = "crates/app/src/i18n.rs::tests"
+notes = "English and Italian."

@@ -1,0 +1,42 @@
+[workspace]
+resolver = "3"
+members = ["crates/engine", "crates/automation", "crates/cli", "crates/app", "xtask"]
+default-members = ["crates/engine", "crates/automation", "crates/cli", "crates/app"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/storytold/formatcraft"
+authors = ["FormatCraft contributors"]
+
+[workspace.dependencies]
+formatcraft-engine = { path = "crates/engine" }
+formatcraft-automation = { path = "crates/automation" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "bmp", "gif", "tiff", "webp", "ico", "tga", "pnm", "qoi", "hdr", "exr", "dds"] }
+lopdf = "0.45.0"
+eframe = { version = "0.37.0", default-features = false, features = ["default_fonts", "glow", "persistence", "wayland", "x11"] }
+rfd = "0.17.2"
+sys-locale = "0.3.2"
+tempfile = "3.27.0"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+unimplemented = "deny"
+todo = "deny"
+unreachable = "deny"
+indexing_slicing = "warn"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true
+panic = "unwind"
