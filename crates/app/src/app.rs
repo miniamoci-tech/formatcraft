@@ -251,6 +251,16 @@ impl FormatCraftApp {
                     });
             }
             egui::CollapsingHeader::new(
+                RichText::new(format!("{}  {}", icons::DISC, self.t("disc")))
+                    .size(16.0)
+                    .strong(),
+            )
+            .id_salt("disc")
+            .default_open(true)
+            .show(ui, |ui| {
+                tile_grid(ui, "disc", &Kind::DISC_TOOLS, self.settings.lang, &mut open);
+            });
+            egui::CollapsingHeader::new(
                 RichText::new(format!("{}  {}", icons::WRENCH, self.t("utilities")))
                     .size(16.0)
                     .strong(),
@@ -310,7 +320,15 @@ impl FormatCraftApp {
         let lang = self.settings.lang;
         let task = &e.job.task;
         let source = match task.inputs().as_slice() {
-            [] => tr(lang, "screen_record").to_string(),
+            [] => match task {
+                Task::CdTrack { drive, track, .. } => format!(
+                    "CD {} · {} {:02}",
+                    drive.as_deref().unwrap_or(""),
+                    tr(lang, "track"),
+                    track.unwrap_or(0)
+                ),
+                _ => tr(lang, "screen_record").to_string(),
+            },
             [one] => file_label(one),
             [first, rest @ ..] => format!("{} (+{})", file_label(first), rest.len()),
         };
@@ -499,6 +517,13 @@ impl FormatCraftApp {
         }
         let lang = self.settings.lang;
         let guess = guess_category(&self.drop_pending);
+        let disc_like = self.drop_pending.iter().any(|p| {
+            p.is_dir()
+                || p.extension().is_some_and(|e| {
+                    let e = e.to_string_lossy().to_ascii_lowercase();
+                    matches!(e.as_str(), "iso" | "cda" | "vob" | "ifo")
+                })
+        });
         let mut chosen: Option<Kind> = None;
         let mut cancel = false;
         let n = self.drop_pending.len();
@@ -507,9 +532,21 @@ impl FormatCraftApp {
             ui.heading(format!("{} ({n})", tr(lang, "drop_title")));
             ui.label(tr(lang, "drop_hint"));
             ui.add_space(6.0);
+            if disc_like {
+                ui.strong(format!("{} {}", icons::DISC, tr(lang, "disc")));
+                ui.horizontal_wrapped(|ui| {
+                    for k in Kind::DISC_TOOLS {
+                        if ui.button(k.title(lang)).clicked() {
+                            chosen = Some(k);
+                        }
+                    }
+                });
+                ui.add_space(4.0);
+            }
             let cats: Vec<Category> = match guess {
                 Some(Category::Video) => vec![Category::Video, Category::Audio],
                 Some(c) => vec![c],
+                None if disc_like => Vec::new(),
                 None => Category::ALL.to_vec(),
             };
             for c in cats {
@@ -781,6 +818,8 @@ fn task_icon(t: &Task) -> &'static str {
         Task::Mux { .. } => icons::COMBINE,
         Task::Split { .. } => icons::SCISSORS,
         Task::ScreenRecord { .. } => icons::RECORD,
+        Task::CdTrack { .. } => icons::DISC_ALBUM,
+        Task::DvdToAudio { .. } => icons::DISC,
         Task::PdfMerge { .. }
         | Task::PdfSplit { .. }
         | Task::PdfCompress { .. }

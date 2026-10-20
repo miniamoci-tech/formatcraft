@@ -217,9 +217,9 @@ pub fn input_extensions(cat: Category) -> &'static [&'static str] {
             "ts", "mts", "m2ts", "vob", "gif", "rm", "rmvb", "asf", "f4v", "divx", "dv",
         ],
         Category::Audio => &[
-            "mp3", "aac", "m4a", "m4r", "wav", "flac", "ogg", "oga", "opus", "wma", "aiff", "aif",
-            "ac3", "mp2", "amr", "wv", "ape", "mka", "dts", "mp4", "mkv", "webm", "avi", "mov",
-            "wmv", "flv", "mpg",
+            "mp3", "cda", "vob", "aac", "m4a", "m4r", "wav", "flac", "ogg", "oga", "opus", "wma",
+            "aiff", "aif", "ac3", "mp2", "amr", "wv", "ape", "mka", "dts", "mp4", "mkv", "webm",
+            "avi", "mov", "wmv", "flv", "mpg",
         ],
         Category::Image => &[
             "jpg", "jpeg", "png", "webp", "bmp", "gif", "tif", "tiff", "ico", "tga", "qoi", "ppm",

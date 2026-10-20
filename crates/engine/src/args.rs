@@ -271,11 +271,38 @@ pub fn convert(
     fmt: &Format,
     o: &MediaOptions,
 ) -> Result<Vec<OsString>> {
+    let src = Input {
+        args: &[],
+        url: input.as_os_str(),
+        audio_stream: 0,
+    };
+    convert_input(ff, &src, info, output, fmt, o)
+}
+
+/// An FFmpeg input that may need demuxer options (DVD) or a non-file URL
+/// (`concat:`), plus which audio stream to use.
+pub struct Input<'a> {
+    pub args: &'a [OsString],
+    pub url: &'a std::ffi::OsStr,
+    pub audio_stream: u32,
+}
+
+/// [`convert`] for any [`Input`].
+pub fn convert_input(
+    ff: &Ffmpeg,
+    src: &Input<'_>,
+    info: &MediaInfo,
+    output: &Path,
+    fmt: &Format,
+    o: &MediaOptions,
+) -> Result<Vec<OsString>> {
     let mut a = prelude();
     if let Some(s) = o.start.filter(|s| *s > 0.0) {
         a.s("-ss").s(secs(s));
     }
-    a.s("-i").s(input);
+    a.all(src.args.iter().cloned());
+    a.s("-i").s(src.url);
+    let audio_map = format!("0:a:{}", src.audio_stream);
     let wm = o
         .watermark
         .as_ref()
@@ -332,7 +359,7 @@ pub fn convert(
             };
             match aenc {
                 Some(aenc) => {
-                    a.all(["-map", "0:a:0?", "-c:a", aenc]);
+                    a.s("-map").s(format!("{audio_map}?")).all(["-c:a", aenc]);
                     audio_quality_args(&mut a, aenc, o);
                     let af = audio_filters(o);
                     if !af.is_empty() {
@@ -349,7 +376,16 @@ pub fn convert(
                 return Err(Error::InvalidOption("the input has no audio track".into()));
             }
             let aenc = ff.pick(fmt.audio).ok_or_else(|| no_encoder("audio", fmt))?;
-            a.all(["-map", "0:a:0", "-vn", "-sn", "-c:a", aenc]);
+            let audio_count = info.streams.iter().filter(|s| s.kind == "audio").count();
+            if usize::try_from(src.audio_stream).unwrap_or(usize::MAX) >= audio_count {
+                return Err(Error::InvalidOption(format!(
+                    "audio track {} does not exist; this source has {audio_count}",
+                    src.audio_stream
+                )));
+            }
+            a.s("-map")
+                .s(&audio_map)
+                .all(["-vn", "-sn", "-dn", "-c:a", aenc]);
             audio_quality_args(&mut a, aenc, o);
             let af = audio_filters(o);
             if !af.is_empty() {
@@ -677,6 +713,56 @@ mod tests {
         assert!(j.contains("-movflags +faststart"));
         assert!(j.contains("-c:a aac"));
         assert_eq!(a.last().unwrap(), "o.mp4");
+    }
+
+    #[test]
+    fn dvd_input_args_and_audio_stream() {
+        let mut info = av_info();
+        info.streams.push(StreamInfo {
+            kind: "audio".into(),
+            codec: "ac3".into(),
+            ..Default::default()
+        });
+        let pre: Vec<OsString> = vec!["-f".into(), "dvdvideo".into(), "-title".into(), "2".into()];
+        let src = Input {
+            args: &pre,
+            url: std::ffi::OsStr::new("D:\\"),
+            audio_stream: 1,
+        };
+        let fmt = find("flac").unwrap();
+        let j = strs(
+            &convert_input(
+                &ff_with_flac(),
+                &src,
+                &info,
+                Path::new("o.flac"),
+                fmt,
+                &MediaOptions::default(),
+            )
+            .unwrap(),
+        )
+        .join(" ");
+        assert!(j.contains("-f dvdvideo -title 2 -i D:\\"), "{j}");
+        assert!(j.contains("-map 0:a:1 -vn"), "{j}");
+        let bad = Input {
+            audio_stream: 2,
+            ..src
+        };
+        assert!(
+            convert_input(
+                &ff_with_flac(),
+                &bad,
+                &info,
+                Path::new("o.flac"),
+                fmt,
+                &MediaOptions::default()
+            )
+            .is_err()
+        );
+    }
+
+    fn ff_with_flac() -> Ffmpeg {
+        Ffmpeg::fake(&["flac", "aac"])
     }
 
     #[test]

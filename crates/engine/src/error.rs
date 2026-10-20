@@ -32,6 +32,8 @@ pub enum Error {
     Probe(String),
     #[error("image error: {0}")]
     Image(#[from] image::ImageError),
+    #[error("disc error: {0}")]
+    Disc(String),
     #[error("PDF error: {0}")]
     Pdf(String),
     #[error("I/O error on {path}: {source}")]

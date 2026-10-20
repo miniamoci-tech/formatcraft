@@ -4,7 +4,7 @@ members = ["crates/engine", "crates/automation", "crates/cli", "crates/app", "xt
 default-members = ["crates/engine", "crates/automation", "crates/cli", "crates/app"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/storytold/formatcraft"
@@ -22,6 +22,7 @@ eframe = { version = "0.37.0", default-features = false, features = ["default_fo
 rfd = "0.17.2"
 sys-locale = "0.3.2"
 tempfile = "3.27.0"
+cd-da-reader = "1.0.0"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

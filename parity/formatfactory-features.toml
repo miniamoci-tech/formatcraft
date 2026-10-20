@@ -136,10 +136,26 @@ tool = "probe"
 evidence = "crates/engine/src/probe.rs::tests::parses_typical_output"
 
 [[feature]]
-id = "rom.dvd_cd_iso"
-name = "DVD/CD ripping, ISO/CSO tools"
+id = "rom.audio_cd"
+name = "Audio CD to audio files (TrackNN.cda or drive tracks)"
+status = "partial"
+tool = "cd_track"
+evidence = "crates/engine/tests/disc_e2e.rs::audio_cd_track_to_mp3_flac_wav; crates/engine/src/disc.rs::tests"
+notes = "Ripping and encoding are tested on a synthetic in-memory CD; not yet tried on a physical drive. No CD-TEXT/MusicBrainz track names, no AccurateRip. On macOS the system's AIFF tracks convert like any audio file."
+
+[[feature]]
+id = "rom.dvd_audio"
+name = "DVD to audio (main title or chosen title, audio track)"
+status = "partial"
+tool = "dvd_to_audio"
+evidence = "crates/engine/tests/disc_e2e.rs::dvd_main_title_and_chosen_title_to_audio"
+notes = "Tested on synthetic VIDEO_TS folders (VOB concatenation and the dvdvideo fallback path); not yet on a pressed disc. CSS-protected DVDs cannot be read (no libdvdcss). No per-chapter splitting yet."
+
+[[feature]]
+id = "rom.dvd_video_iso"
+name = "DVD to video, ISO/CSO tools"
 status = "planned"
-notes = "Out of scope for 0.1; DVD ripping needs libdvdcss which cannot be bundled."
+notes = "DVD to video file and ISO creation/compression are not implemented."
 
 [[feature]]
 id = "util.downloader"
