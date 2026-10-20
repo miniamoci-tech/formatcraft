@@ -79,6 +79,16 @@ const TASK_TOOLS: &[ToolInfo] = &[
         summary: "Make a PDF with one page per image",
         example: r#"{"inputs":["1.jpg","2.png"]}"#,
     },
+    ToolInfo {
+        name: "cd_track",
+        summary: "Rip an audio CD track to audio: give its .cda file, or drive + track (see cd_list)",
+        example: r#"{"cda":"Track01.cda","format":"mp3","options":{"audio_bitrate_k":320}}"#,
+    },
+    ToolInfo {
+        name: "dvd_to_audio",
+        summary: "Extract the audio of a DVD title (drive, VIDEO_TS folder or .iso); default: main title, first audio track",
+        example: r#"{"input":"MY_DVD","format":"flac","title":1,"audio_track":0}"#,
+    },
 ];
 
 const INFO_TOOLS: &[ToolInfo] = &[
@@ -95,6 +105,16 @@ const INFO_TOOLS: &[ToolInfo] = &[
     ToolInfo {
         name: "ffmpeg_info",
         summary: "Which FFmpeg is used and whether it was found",
+        example: "{}",
+    },
+    ToolInfo {
+        name: "dvd_list",
+        summary: "Mounted DVD-Video discs (paths usable as dvd_to_audio input)",
+        example: "{}",
+    },
+    ToolInfo {
+        name: "cd_list",
+        summary: "Drives holding an audio CD, with their tracks (drive paths for cd_track)",
         example: "{}",
     },
 ];
@@ -245,6 +265,19 @@ fn confine_task(task: &mut Task, root: &Root) -> Result<(), ToolError> {
             fix(video)?;
             fix(audio)?;
         }
+        Task::DvdToAudio { input, options, .. } => {
+            fix(input)?;
+            if let Some(Watermark { image, .. }) = options.watermark.as_mut() {
+                fix(image)?;
+            }
+        }
+        // Drive paths are device names, validated by the engine
+        // (disc::check_drive_path), not files under the root.
+        Task::CdTrack { cda, .. } => {
+            if let Some(c) = cda.as_mut() {
+                fix(c)?;
+            }
+        }
         Task::ScreenRecord { .. } => {}
     }
     Ok(())
@@ -291,6 +324,12 @@ pub fn call(root: &Root, tool: &str, args: &Value) -> Result<Value, ToolError> {
             let path = root.resolve(Path::new(p))?;
             let info = probe::probe(&path).map_err(|e| err(e.to_string()))?;
             serde_json::to_value(info).map_err(|e| err(e.to_string()))
+        }
+        "dvd_list" => Ok(json!(formatcraft_engine::disc::find_dvd_volumes())),
+        "cd_list" => {
+            let discs =
+                formatcraft_engine::disc::list_audio_cds().map_err(|e| err(e.to_string()))?;
+            serde_json::to_value(discs).map_err(|e| err(e.to_string()))
         }
         "ffmpeg_info" => Ok(match formatcraft_engine::ffmpeg::Ffmpeg::get() {
             Ok(f) => {
@@ -395,6 +434,27 @@ mod tests {
         assert!(e.0.contains("outside"), "{e}");
         let e = call(&root, "nope", &json!({})).unwrap_err();
         assert!(e.0.contains("unknown tool"));
+    }
+
+    #[test]
+    fn disc_tools_confine_paths_and_reject_hard_disks() {
+        let d = tempfile::tempdir().unwrap();
+        let root = Root::new(d.path()).unwrap();
+        let e = call(
+            &root,
+            "dvd_to_audio",
+            &json!({"input":"../..","format":"mp3"}),
+        )
+        .unwrap_err();
+        assert!(e.0.contains("outside"), "{e}");
+        let e = call(&root, "cd_track", &json!({"cda":"../x.cda","format":"mp3"})).unwrap_err();
+        assert!(e.0.contains("outside"), "{e}");
+        let args = json!({"drive": r"\\.\PhysicalDrive0", "track": 1, "format": "mp3"});
+        let e = call(&root, "cd_track", &args).unwrap_err();
+        assert!(e.0.contains("not a CD drive"), "{e}");
+        let args = json!({"drive": r"\\.\D:", "track": 1, "format": "png"});
+        let e = call(&root, "cd_track", &args).unwrap_err();
+        assert!(e.0.contains("cannot be used"), "{e}");
     }
 
     #[test]

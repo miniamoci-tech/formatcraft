@@ -61,6 +61,34 @@ pub fn write_with(output: &Path, write: impl FnOnce(&Path) -> Result<()>) -> Res
     }
 }
 
+/// A private temporary folder, deleted (best effort) when dropped.
+pub struct ScratchDir(PathBuf);
+
+impl ScratchDir {
+    pub fn new() -> Result<ScratchDir> {
+        let base = std::env::temp_dir();
+        for n in 0..1000u32 {
+            let d = base.join(format!("formatcraft-{}-{n}", std::process::id()));
+            if std::fs::create_dir(&d).is_ok() {
+                return Ok(ScratchDir(d));
+            }
+        }
+        Err(Error::Internal(
+            "could not create a temporary folder".into(),
+        ))
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for ScratchDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 /// Same as [`write_with`] for a job producing a folder of files.
 pub fn write_dir_with(output: &Path, write: impl FnOnce(&Path) -> Result<()>) -> Result<PathBuf> {
     let tmp = tmp_sibling(output);

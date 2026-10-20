@@ -39,6 +39,9 @@ pub const SLIDERS: &str = "\u{e29a}";
 pub const AUDIO_LINES: &str = "\u{e55a}";
 pub const UPLOAD: &str = "\u{e19e}";
 pub const CIRCLE_STOP: &str = "\u{e083}";
+pub const DISC: &str = "\u{e0af}";
+pub const DISC_ALBUM: &str = "\u{e55c}";
+pub const REFRESH: &str = "\u{e145}";
 
 /// Adds Lucide as a fallback to both font families.
 pub fn install(ctx: &egui::Context) {

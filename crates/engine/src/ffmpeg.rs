@@ -15,6 +15,7 @@ pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
     pub ffprobe: PathBuf,
     encoders: HashSet<String>,
+    demuxers: HashSet<String>,
     pub version: String,
 }
 
@@ -98,6 +99,11 @@ impl Ffmpeg {
             .map_err(|_| Error::FfmpegMissing)?;
         let text = String::from_utf8_lossy(&out.stdout);
         let encoders = parse_encoders(&text);
+        let demuxers = command(&ffmpeg)
+            .args(["-hide_banner", "-demuxers"])
+            .output()
+            .map(|o| parse_formats(&String::from_utf8_lossy(&o.stdout)))
+            .unwrap_or_default();
         let version = command(&ffmpeg)
             .arg("-version")
             .output()
@@ -113,12 +119,18 @@ impl Ffmpeg {
             ffmpeg,
             ffprobe,
             encoders,
+            demuxers,
             version,
         })
     }
 
     pub fn has_encoder(&self, name: &str) -> bool {
         self.encoders.contains(name)
+    }
+
+    /// Whether this build can read the input format `name` (e.g. `dvdvideo`).
+    pub fn has_demuxer(&self, name: &str) -> bool {
+        self.demuxers.contains(name)
     }
 
     /// First encoder from `prefs` that this FFmpeg build supports.
@@ -132,6 +144,7 @@ impl Ffmpeg {
             ffmpeg: PathBuf::from("ffmpeg"),
             ffprobe: PathBuf::from("ffprobe"),
             encoders: encoders.iter().map(|s| s.to_string()).collect(),
+            demuxers: HashSet::new(),
             version: "fake".into(),
         }
     }
@@ -160,6 +173,36 @@ fn parse_encoders(text: &str) -> HashSet<String> {
     set
 }
 
+/// Parses `ffmpeg -demuxers`: lines like ` D  mov,mp4,m4a   QuickTime` after
+/// the ` --` / ` ---` separator. Flag columns are single letters; the first other
+/// token is a comma-separated list of names.
+fn parse_formats(text: &str) -> HashSet<String> {
+    let mut set = HashSet::new();
+    let mut in_list = false;
+    for line in text.lines() {
+        let t = line.trim();
+        if t.len() >= 2 && t.chars().all(|c| c == '-') {
+            in_list = true;
+            continue;
+        }
+        if !in_list {
+            continue;
+        }
+        let name = t.split_whitespace().find(|tok| {
+            !(tok.len() <= 2 && tok.chars().all(|c| matches!(c, 'D' | 'E' | 'd' | '.')))
+        });
+        if let Some(names) = name {
+            set.extend(
+                names
+                    .split(',')
+                    .filter(|n| !n.is_empty())
+                    .map(str::to_string),
+            );
+        }
+    }
+    set
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,6 +215,30 @@ mod tests {
         assert!(set.contains("aac"));
         assert!(!set.contains("="));
         assert!(parse_encoders("").is_empty());
+    }
+
+    #[test]
+    fn parses_demuxer_list() {
+        let text = "File formats:
+ D.. = Demuxing supported
+ ---
+ D   dvdvideo        DVD-Video
+ D d dshow  DirectShow
+ DE mov,mp4,m4a QuickTime
+";
+        let set = parse_formats(text);
+        for n in ["dvdvideo", "dshow", "mov", "mp4", "m4a"] {
+            assert!(set.contains(n), "{n}");
+        }
+        assert!(!set.contains("D") && !set.contains("Demuxing"));
+        assert!(
+            parse_formats(
+                "garbage
+--
+"
+            )
+            .is_empty()
+        );
     }
 
     #[test]

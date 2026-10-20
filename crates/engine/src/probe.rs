@@ -1,5 +1,6 @@
 //! Media information through `ffprobe`.
 
+use std::ffi::{OsStr, OsString};
 use std::path::Path;
 
 use serde::Serialize;
@@ -44,6 +45,12 @@ pub fn probe(input: &Path) -> Result<MediaInfo> {
     if !input.is_file() {
         return Err(Error::MissingInput(input.to_path_buf()));
     }
+    probe_input(&[], input.as_os_str())
+}
+
+/// Probes an input that needs demuxer options (`-f dvdvideo -title 2`) or is
+/// not a plain file (`concat:a.vob|b.vob`). `input_args` go before `-i`.
+pub fn probe_input(input_args: &[OsString], input: &OsStr) -> Result<MediaInfo> {
     let ff = Ffmpeg::get()?;
     let out = command(&ff.ffprobe)
         .args([
@@ -54,6 +61,8 @@ pub fn probe(input: &Path) -> Result<MediaInfo> {
             "-show_format",
             "-show_streams",
         ])
+        .args(input_args)
+        .arg("-i")
         .arg(input)
         .output()
         .map_err(|e| Error::Probe(e.to_string()))?;

@@ -159,6 +159,33 @@ pub enum Task {
     ImagesToPdf {
         inputs: Vec<PathBuf>,
     },
+    /// Rip one audio CD track, given either its `.cda` file (Windows) or a
+    /// drive device path plus a track number.
+    CdTrack {
+        #[serde(default)]
+        cda: Option<PathBuf>,
+        #[serde(default)]
+        drive: Option<String>,
+        #[serde(default)]
+        track: Option<u8>,
+        format: String,
+        #[serde(default)]
+        options: MediaOptions,
+    },
+    /// Extract the audio of a DVD-Video title. `input` is the DVD drive, its
+    /// `VIDEO_TS` folder (or a file in it) or an `.iso` image.
+    DvdToAudio {
+        input: PathBuf,
+        /// DVD title number; default: the main feature.
+        #[serde(default)]
+        title: Option<u32>,
+        /// 0-based audio stream (language); default: the first.
+        #[serde(default)]
+        audio_track: Option<u32>,
+        format: String,
+        #[serde(default)]
+        options: MediaOptions,
+    },
 }
 
 /// A task plus the place its result goes.
@@ -179,6 +206,8 @@ impl Task {
             | Task::PdfSplit { input }
             | Task::PdfCompress { input } => Some(input),
             Task::Mux { video, .. } => Some(video),
+            Task::DvdToAudio { input, .. } => Some(input),
+            Task::CdTrack { cda, .. } => cda.as_deref(),
             Task::Join { inputs, .. }
             | Task::PdfMerge { inputs }
             | Task::ImagesToPdf { inputs } => inputs.first().map(PathBuf::as_path),
@@ -202,7 +231,9 @@ impl Task {
             | Task::ConvertImage { format, .. }
             | Task::Join { format, .. }
             | Task::Mux { format, .. }
-            | Task::ScreenRecord { format, .. } => format,
+            | Task::ScreenRecord { format, .. }
+            | Task::CdTrack { format, .. }
+            | Task::DvdToAudio { format, .. } => format,
             Task::Split { .. } => "split",
             Task::PdfMerge { .. }
             | Task::PdfSplit { .. }
@@ -224,6 +255,8 @@ impl Task {
             Task::PdfSplit { .. } => "pdf_split",
             Task::PdfCompress { .. } => "pdf_compress",
             Task::ImagesToPdf { .. } => "images_to_pdf",
+            Task::CdTrack { .. } => "cd_track",
+            Task::DvdToAudio { .. } => "dvd_to_audio",
         }
     }
 
@@ -231,7 +264,13 @@ impl Task {
     /// queued job fails early with a clear message.
     pub fn validate(&self) -> Result<()> {
         for input in self.inputs() {
-            if !input.is_file() {
+            // A DVD input may be a drive or a folder.
+            let ok = if matches!(self, Task::DvdToAudio { .. }) {
+                input.exists()
+            } else {
+                input.is_file()
+            };
+            if !ok {
                 return Err(Error::MissingInput(input.to_path_buf()));
             }
         }
@@ -308,6 +347,52 @@ impl Task {
             Task::PdfMerge { inputs } => min("PDF merge", 2, inputs.len()),
             Task::ImagesToPdf { inputs } => min("images to PDF", 1, inputs.len()),
             Task::PdfSplit { .. } | Task::PdfCompress { .. } => Ok(()),
+            Task::CdTrack {
+                cda,
+                drive,
+                track,
+                format,
+                options,
+            } => {
+                need(format, &[Category::Audio], "audio CD ripping")?;
+                options.check()?;
+                match (cda, drive, track) {
+                    (Some(c), _, _) if !crate::disc::is_cda(c) => Err(Error::InvalidOption(
+                        format!("{} is not a .cda file", c.display()),
+                    )),
+                    (Some(_), _, _) => Ok(()),
+                    (None, Some(d), Some(t)) if (1..=99).contains(t) => {
+                        crate::disc::check_drive_path(d)
+                    }
+                    (None, Some(_), _) => Err(Error::InvalidOption("track must be 1..=99".into())),
+                    (None, None, _) => Err(Error::InvalidOption(
+                        "give either `cda` (a TrackNN.cda file) or `drive` and `track`".into(),
+                    )),
+                }
+            }
+            Task::DvdToAudio {
+                title,
+                audio_track,
+                format,
+                options,
+                ..
+            } => {
+                need(format, &[Category::Audio], "DVD audio extraction")?;
+                options.check()?;
+                if let Some(t) = title
+                    && !(1..=99).contains(t)
+                {
+                    return Err(Error::InvalidOption("DVD title must be 1..=99".into()));
+                }
+                if let Some(a) = audio_track
+                    && *a > 15
+                {
+                    return Err(Error::InvalidOption(
+                        "DVD audio track must be 0..=15".into(),
+                    ));
+                }
+                Ok(())
+            }
         }
     }
 
@@ -326,12 +411,14 @@ impl Task {
     /// overwrite anything already there.
     pub fn into_job(self, dir: &Path) -> Result<Job> {
         self.validate()?;
-        let stem = match self.primary_input() {
-            Some(p) => p
+        let stem = match (&self, self.primary_input()) {
+            (Task::CdTrack { track: Some(t), .. }, None) => format!("Track {t:02}"),
+            (Task::DvdToAudio { input, .. }, _) => dvd_name(input),
+            (_, Some(p)) => p
                 .file_stem()
                 .map(|s| s.to_string_lossy().into_owned())
                 .unwrap_or_else(|| "output".into()),
-            None => "recording".into(),
+            (_, None) => "recording".into(),
         };
         let suffix = match &self {
             Task::Join { .. } | Task::PdfMerge { .. } => "_joined",
@@ -344,6 +431,31 @@ impl Task {
         let output = unique_path(dir, &base, self.output_ext());
         Ok(Job { task: self, output })
     }
+}
+
+/// A readable name for a DVD: the folder holding `VIDEO_TS`, else "DVD".
+fn dvd_name(input: &Path) -> String {
+    let mut p = input;
+    for _ in 0..2 {
+        let is_vts = p
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("VIDEO_TS"));
+        if (is_vts || p.is_file())
+            && let Some(parent) = p.parent()
+        {
+            p = parent;
+        }
+    }
+    if input
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("iso"))
+    {
+        p = input;
+    }
+    p.file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "DVD".into())
 }
 
 impl MediaOptions {

@@ -6,7 +6,7 @@
 
 Written in Rust. Audio and video are processed by [FFmpeg](https://ffmpeg.org), bundled in the installers and run as a separate program; images and PDFs are handled natively.
 
-> 🇮🇹 **In italiano** — FormatCraft è un convertitore multimediale libero per Windows e macOS: converte video, audio, immagini e PDF, unisce e divide file, sostituisce l'audio di un video, registra lo schermo e mostra le informazioni dei file. L'interfaccia è in italiano e in inglese.
+> 🇮🇹 **In italiano** — FormatCraft è un convertitore multimediale libero per Windows e macOS: converte video, audio, immagini e PDF, estrae l'audio da CD (file .cda) e DVD, unisce e divide file, sostituisce l'audio di un video, registra lo schermo e mostra le informazioni dei file. L'interfaccia è in italiano e in inglese.
 
 ## Download
 
@@ -30,6 +30,7 @@ The builds are not code-signed by a paid certificate yet:
 | **Audio** | MP3, AAC, M4A, M4R (iPhone ringtone), WAV, FLAC, OGG, Opus, WMA, AIFF, AC3, MP2, AMR, WavPack — from audio *or* video files (audio extraction). Bitrate, sample rate, channels, cut, speed, volume. |
 | **Image** | JPG, PNG, WebP, BMP, GIF, TIFF, ICO, TGA, QOI, PPM. Resize, scale, rotate, grayscale, JPEG quality. HEIC/AVIF inputs are decoded through FFmpeg. |
 | **PDF** | Merge, split into pages, compress, images → PDF. |
+| **Disc** | Audio CD → MP3/FLAC/WAV/… (pick the `TrackNN.cda` files or detect the CD and tick tracks). DVD → audio (main title or a chosen title and language, from the drive, a `VIDEO_TS` folder or an `.iso`). Copy-protected commercial DVDs cannot be read. |
 | **Utilities** | Video joiner (mixed sizes OK), audio joiner, mux (replace audio), splitter, screen recorder, media info. |
 | **Workflow** | Task list with parallel conversions, progress, stop/retry, drag & drop, "Open with", output to a folder or next to the source. Never overwrites existing files. |
 

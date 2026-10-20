@@ -16,6 +16,7 @@
 
 pub mod args;
 pub mod atomic;
+pub mod disc;
 pub mod error;
 pub mod exec;
 pub mod ffmpeg;

@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use eframe::egui::{self, RichText, Ui};
+use formatcraft_engine::disc::{self, CdDisc};
 use formatcraft_engine::formats::{self, Category, Format};
 use formatcraft_engine::job::{Corner, Crop, Quality, Rotation, Watermark};
 use formatcraft_engine::probe::{self, MediaInfo};
@@ -24,9 +25,12 @@ pub enum Kind {
     PdfSplit,
     PdfCompress,
     ImagesToPdf,
+    AudioCd,
+    DvdAudio,
 }
 
 impl Kind {
+    pub const DISC_TOOLS: [Kind; 2] = [Kind::AudioCd, Kind::DvdAudio];
     pub const UTILITIES: [Kind; 6] = [
         Kind::JoinVideo,
         Kind::JoinAudio,
@@ -55,6 +59,8 @@ impl Kind {
             Kind::PdfSplit => "pdf_split",
             Kind::PdfCompress => "pdf_compress",
             Kind::ImagesToPdf => "images_to_pdf",
+            Kind::AudioCd => "audio_cd",
+            Kind::DvdAudio => "dvd_audio",
         }
     }
 
@@ -71,6 +77,8 @@ impl Kind {
             Kind::PdfSplit => icons::SPLIT,
             Kind::PdfCompress => icons::SHRINK,
             Kind::ImagesToPdf => icons::IMAGE,
+            Kind::AudioCd => icons::DISC_ALBUM,
+            Kind::DvdAudio => icons::DISC,
         }
     }
 
@@ -99,12 +107,13 @@ impl Kind {
             Kind::JoinAudio => ("Audio", exts(Category::Audio)),
             Kind::PdfMerge | Kind::PdfSplit | Kind::PdfCompress => ("PDF", vec!["pdf"]),
             Kind::ImagesToPdf => ("Image", exts(Category::Image)),
-            Kind::Mux | Kind::ScreenRecord => ("Media", vec![]),
+            Kind::AudioCd => ("CD audio", vec!["cda"]),
+            Kind::Mux | Kind::ScreenRecord | Kind::DvdAudio => ("Media", vec![]),
         }
     }
 
     fn uses_file_list(self) -> bool {
-        !matches!(self, Kind::Mux | Kind::ScreenRecord)
+        !matches!(self, Kind::Mux | Kind::ScreenRecord | Kind::DvdAudio)
     }
 
     fn ordered(self) -> bool {
@@ -182,12 +191,19 @@ pub struct Dialog {
     rec_audio: bool,
     pub error: Option<String>,
     info: Option<(PathBuf, Result<MediaInfo, String>)>,
+    cd_discs: Option<Result<Vec<CdDisc>, String>>,
+    cd_drive: usize,
+    cd_selected: Vec<bool>,
+    dvd_input: Option<PathBuf>,
+    dvd_volumes: Vec<PathBuf>,
+    dvd_title: u32,
+    dvd_audio: u32,
 }
 
 impl Dialog {
     pub fn new(kind: Kind, files: Vec<PathBuf>) -> Dialog {
         let format_id = match kind {
-            Kind::JoinAudio => "mp3",
+            Kind::JoinAudio | Kind::AudioCd | Kind::DvdAudio => "mp3",
             Kind::JoinVideo | Kind::Mux | Kind::ScreenRecord => "mp4",
             Kind::Convert(f) => f.id,
             _ => "pdf",
@@ -239,12 +255,29 @@ impl Dialog {
             rec_audio: false,
             error: None,
             info: None,
+            cd_discs: None,
+            cd_drive: 0,
+            cd_selected: Vec::new(),
+            dvd_input: None,
+            dvd_volumes: Vec::new(),
+            dvd_title: 0,
+            dvd_audio: 1,
         };
+        if kind == Kind::DvdAudio {
+            d.dvd_volumes = disc::find_dvd_volumes();
+            d.dvd_input = d.dvd_volumes.first().cloned();
+        }
         d.add_files(files);
         d
     }
 
     pub fn add_files(&mut self, files: Vec<PathBuf>) {
+        if self.kind == Kind::DvdAudio {
+            if let Some(f) = files.into_iter().next() {
+                self.dvd_input = Some(f);
+            }
+            return;
+        }
         for f in files {
             if f.is_dir() {
                 self.add_folder(&f);
@@ -391,6 +424,8 @@ impl Dialog {
                     ui.label(RichText::new(t("recording_hint")).italics());
                 }
                 Kind::MediaInfo => self.info_view(ui, lang),
+                Kind::AudioCd => self.cd_options(ui, lang),
+                Kind::DvdAudio => self.dvd_options(ui, lang),
                 _ => {}
             });
 
@@ -960,11 +995,252 @@ impl Dialog {
                 }]
             }
             Kind::MediaInfo => Vec::new(),
+            Kind::AudioCd => {
+                let options = self.audio_options();
+                let mut tasks: Vec<Task> = self
+                    .files
+                    .iter()
+                    .map(|p| Task::CdTrack {
+                        cda: Some(p.clone()),
+                        drive: None,
+                        track: None,
+                        format: self.format_id.clone(),
+                        options: options.clone(),
+                    })
+                    .collect();
+                if let Some(Ok(discs)) = &self.cd_discs
+                    && let Some(cd) = discs.get(self.cd_drive)
+                {
+                    for (t, on) in cd.tracks.iter().zip(&self.cd_selected) {
+                        if *on {
+                            tasks.push(Task::CdTrack {
+                                cda: None,
+                                drive: Some(cd.drive.clone()),
+                                track: Some(t.number),
+                                format: self.format_id.clone(),
+                                options: options.clone(),
+                            });
+                        }
+                    }
+                }
+                if tasks.is_empty() {
+                    return Err(tr(lang, "no_tracks").to_string());
+                }
+                tasks
+            }
+            Kind::DvdAudio => {
+                let input = self
+                    .dvd_input
+                    .clone()
+                    .ok_or_else(|| tr(lang, "no_dvd").to_string())?;
+                vec![Task::DvdToAudio {
+                    input,
+                    title: (self.dvd_title > 0).then_some(self.dvd_title),
+                    audio_track: Some(self.dvd_audio.saturating_sub(1)),
+                    format: self.format_id.clone(),
+                    options: self.audio_options(),
+                }]
+            }
         };
         for t in &tasks {
             t.validate().map_err(|e| e.to_string())?;
         }
         Ok(tasks)
+    }
+}
+
+impl Dialog {
+    /// Options shared by the disc dialogs (audio only).
+    fn audio_options(&self) -> MediaOptions {
+        MediaOptions {
+            quality: self.media.quality,
+            audio_bitrate_k: self.ab_on.then_some(self.ab),
+            sample_rate: self.sr,
+            channels: self.ch,
+            ..Default::default()
+        }
+    }
+
+    fn audio_output_grid(&mut self, ui: &mut Ui, lang: Lang) {
+        let t = |k| tr(lang, k);
+        format_combo(ui, lang, &mut self.format_id, Category::Audio);
+        egui::Grid::new("disc-audio-opts")
+            .num_columns(2)
+            .spacing([12.0, 6.0])
+            .show(ui, |ui| {
+                ui.label(t("quality"));
+                quality_combo(ui, lang, &mut self.media.quality);
+                ui.end_row();
+                ui.checkbox(&mut self.ab_on, t("audio_bitrate"));
+                ui.add_enabled(
+                    self.ab_on,
+                    egui::DragValue::new(&mut self.ab).range(8..=512).speed(8),
+                );
+                ui.end_row();
+                ui.label(t("sample_rate"));
+                option_combo(
+                    ui,
+                    "disc-sr",
+                    &mut self.sr,
+                    &[22050, 44100, 48000, 96000],
+                    t("original"),
+                );
+                ui.end_row();
+                ui.label(t("channels"));
+                option_combo(ui, "disc-ch", &mut self.ch, &[1, 2], t("original"));
+                ui.end_row();
+            });
+    }
+
+    fn detect_cds(&mut self) {
+        let r = disc::list_audio_cds().map_err(|e| e.to_string());
+        self.cd_drive = 0;
+        self.cd_selected = match &r {
+            Ok(discs) => discs
+                .first()
+                .map(|d| vec![true; d.tracks.len()])
+                .unwrap_or_default(),
+            Err(_) => Vec::new(),
+        };
+        self.cd_discs = Some(r);
+    }
+
+    fn cd_options(&mut self, ui: &mut Ui, lang: Lang) {
+        let t = |k| tr(lang, k);
+        ui.label(RichText::new(t("cda_hint")).italics());
+        if cfg!(target_os = "macos") {
+            ui.label(RichText::new(t("mac_cd_hint")).italics());
+        }
+        if ui
+            .button(format!("{} {}", icons::REFRESH, t("detect")))
+            .clicked()
+        {
+            self.detect_cds();
+        }
+        match &self.cd_discs {
+            None => {}
+            Some(Err(e)) => {
+                ui.colored_label(ui.visuals().error_fg_color, e);
+            }
+            Some(Ok(discs)) if discs.is_empty() => {
+                ui.weak(t("no_cd"));
+            }
+            Some(Ok(discs)) => {
+                let discs = discs.clone();
+                if discs.len() > 1 {
+                    let label =
+                        |i: usize| discs.get(i).map(|d| d.drive.clone()).unwrap_or_default();
+                    let before = self.cd_drive;
+                    egui::ComboBox::from_id_salt("cd-drive")
+                        .selected_text(label(self.cd_drive))
+                        .show_ui(ui, |ui| {
+                            for i in 0..discs.len() {
+                                ui.selectable_value(&mut self.cd_drive, i, label(i));
+                            }
+                        });
+                    if before != self.cd_drive {
+                        let n = discs
+                            .get(self.cd_drive)
+                            .map(|d| d.tracks.len())
+                            .unwrap_or(0);
+                        self.cd_selected = vec![true; n];
+                    }
+                }
+                if let Some(cd) = discs.get(self.cd_drive) {
+                    ui.horizontal(|ui| {
+                        ui.strong(format!("{} {}", t("cd_tracks"), cd.drive));
+                        if ui.small_button(t("select_all")).clicked() {
+                            self.cd_selected.iter_mut().for_each(|s| *s = true);
+                        }
+                        if ui.small_button(t("select_none")).clicked() {
+                            self.cd_selected.iter_mut().for_each(|s| *s = false);
+                        }
+                    });
+                    self.cd_selected.resize(cd.tracks.len(), true);
+                    egui::Grid::new("cd-tracks").num_columns(4).show(ui, |ui| {
+                        for (i, (tr_info, on)) in cd
+                            .tracks
+                            .iter()
+                            .zip(self.cd_selected.iter_mut())
+                            .enumerate()
+                        {
+                            ui.checkbox(
+                                on,
+                                format!(
+                                    "{} {:02}  ({})",
+                                    t("track"),
+                                    tr_info.number,
+                                    hms(tr_info.seconds)
+                                ),
+                            );
+                            if i % 2 == 1 {
+                                ui.end_row();
+                            }
+                        }
+                    });
+                }
+            }
+        }
+        ui.separator();
+        self.audio_output_grid(ui, lang);
+    }
+
+    fn dvd_options(&mut self, ui: &mut Ui, lang: Lang) {
+        let t = |k| tr(lang, k);
+        ui.label(RichText::new(t("dvd_hint")).italics());
+        ui.horizontal(|ui| {
+            ui.label(format!("{}:", t("dvd_source")));
+            let shown = self
+                .dvd_input
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "—".into());
+            egui::ComboBox::from_id_salt("dvd-src")
+                .selected_text(shown)
+                .show_ui(ui, |ui| {
+                    for v in self.dvd_volumes.clone() {
+                        let label = v.display().to_string();
+                        ui.selectable_value(&mut self.dvd_input, Some(v), label);
+                    }
+                });
+            if ui
+                .small_button(icons::REFRESH)
+                .on_hover_text(t("detect"))
+                .clicked()
+            {
+                self.dvd_volumes = disc::find_dvd_volumes();
+                if self.dvd_input.is_none() {
+                    self.dvd_input = self.dvd_volumes.first().cloned();
+                }
+            }
+        });
+        ui.horizontal(|ui| {
+            if ui.button(t("choose_folder")).clicked()
+                && let Some(d) = rfd::FileDialog::new().pick_folder()
+            {
+                self.dvd_input = Some(d);
+            }
+            if ui.button(t("choose_iso")).clicked()
+                && let Some(f) = rfd::FileDialog::new()
+                    .add_filter("ISO", &["iso"])
+                    .pick_file()
+            {
+                self.dvd_input = Some(f);
+            }
+        });
+        egui::Grid::new("dvd-opts")
+            .num_columns(2)
+            .spacing([12.0, 6.0])
+            .show(ui, |ui| {
+                ui.label(t("dvd_title"));
+                ui.add(egui::DragValue::new(&mut self.dvd_title).range(0..=99));
+                ui.end_row();
+                ui.label(t("audio_stream"));
+                ui.add(egui::DragValue::new(&mut self.dvd_audio).range(1..=16));
+                ui.end_row();
+            });
+        ui.separator();
+        self.audio_output_grid(ui, lang);
     }
 }
 

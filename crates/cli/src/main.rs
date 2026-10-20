@@ -20,6 +20,8 @@ USAGE:
   formatcraft-cli tools                          list automation tools
   formatcraft-cli formats [CATEGORY]             list output formats
   formatcraft-cli probe FILE                     show media information
+  formatcraft-cli cds                            list audio CDs in the drives
+  formatcraft-cli convert Track01.cda --to mp3      rip an audio CD track
   formatcraft-cli convert FILE... --to FORMAT [--out DIR] [--options JSON]
   formatcraft-cli call TOOL JSON [--root DIR]    run one tool
   formatcraft-cli run --script FILE [--root DIR] run a JSON script of tool steps
@@ -88,6 +90,7 @@ fn real_main(args: &[String]) -> Result<Value, String> {
                 .map(|t| json!({"name": t.name, "summary": t.summary, "example": t.example}))
                 .collect(),
         )),
+        "cds" => call(&root(rest)?, "cd_list", &json!({})).map_err(|e| e.to_string()),
         "formats" => {
             let r = root(rest)?;
             let args = match positional(rest).first() {
@@ -142,7 +145,19 @@ fn convert(rest: &[String]) -> Result<Value, String> {
     let mut results = Vec::new();
     for f in files {
         let input = PathBuf::from(&f);
+        let is_dvd = input.is_dir()
+            || input
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("iso"));
         let task = match fmt.category {
+            Category::Audio if is_dvd => Task::DvdToAudio {
+                input,
+                title: None,
+                audio_track: None,
+                format: fmt.id.into(),
+                options: serde_json::from_str::<MediaOptions>(&opts)
+                    .map_err(|e| format!("bad --options: {e}"))?,
+            },
             Category::Video | Category::Audio => Task::Convert {
                 input,
                 format: fmt.id.into(),
