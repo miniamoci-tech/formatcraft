@@ -1,6 +1,6 @@
 # Roadmap
 
-Status: 0.1.0 — first public build. Last updated 2026-10-19.
+Status: 0.2.0 — disc tools. Last updated 2026-10-20.
 
 | Milestone | Scope | Status |
 |---|---|---|

@@ -998,7 +998,7 @@ checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
 name = "formatcraft"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "eframe",
  "formatcraft-engine",
@@ -1012,7 +1012,7 @@ dependencies = [
 
 [[package]]
 name = "formatcraft-automation"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "formatcraft-engine",
  "image",
@@ -1023,7 +1023,7 @@ dependencies = [
 
 [[package]]
 name = "formatcraft-cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "formatcraft-automation",
  "formatcraft-engine",
@@ -1032,7 +1032,7 @@ dependencies = [
 
 [[package]]
 name = "formatcraft-engine"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "cd-da-reader",
  "image",
