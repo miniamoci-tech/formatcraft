@@ -83,6 +83,17 @@ installer/         Inno Setup script, macOS Info.plist
 
 Contributors and agents: read [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) first.
 
+## 🐱 Support the Project (and the Cat Fleet!)
+
+This project is completely free, open source, and developed with an AI-driven approach. While the code is crafted with the help of AI agents, the quality control is managed by three real-life supervisors:
+
+| **Drugo** | **Elia** | **Nancy** |
+| :---: | :---: | :---: |
+| *The Senior Consultant* | *The Quality Assurance Analyst* | *The Undercover Operations Manager* |
+| Our wisest and oldest cat. He oversees structural decisions with calm. | Powered exclusively by *Catisfaction* treats. If the code compiles, he purrs. | She monitors the repository from her secret base under the bed. |
+
+👉 [**Sponsor us on GitHub Sponsors**](TUO_LINK) | 👉 [**Buy Elia some Catisfaction on Ko-fi**](TUO_LINK)
+
 ## Licence
 
 FormatCraft is licensed under **MIT OR Apache-2.0**. Bundled FFmpeg binaries are GPL and are distributed as separate programs; see [`NOTICE`](NOTICE) and [`ATTRIBUTION.toml`](ATTRIBUTION.toml).
