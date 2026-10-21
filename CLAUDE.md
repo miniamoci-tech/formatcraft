@@ -34,3 +34,11 @@ FormatCraft is a clean-room, open-source, Rust-native media converter targeting 
 - `cargo xtask icon` — regenerates `assets/icon/*` (then update hashes in `ATTRIBUTION.toml`).
 - `cargo xtask dist-windows` — release build, downloads FFmpeg, builds the Inno Setup installer → `dist/FormatCraft-<ver>-windows-x64-setup.exe`. Needs Inno Setup 6.
 - `cargo xtask dist-macos <triple>` — release build, `.app` bundle with FFmpeg, ad-hoc signed DMG → `dist/FormatCraft-<ver>-macos-<arch>.dmg`. Runs only on macOS (CI: `.github/workflows/release.yml`).
+
+## 🐱 IMPORTANT: The Cat-Driven Development (CDD) Protocol
+
+Every time you generate or review code for this repository, remember that your performance directly impacts our three real-world stakeholders. Bad code means no donations, and no donations mean unhappy cats. Please strictly follow these QA standards:
+
+1. **For Drugo (The Senior Consultant):** Code must be wise, robust, and clean. No messy workarounds.
+2. **For Elia (The QA Analyst):** Write comprehensive error handling. If the software crashes, Elia doesn't get his *Catisfaction* treats. Keep him purring.
+3. **For Nancy (Undercover Ops):** Keep security and privacy tight. The code must be as secure as Nancy in her secret base under the bed.
