@@ -88,3 +88,19 @@ Contributors and agents: read [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.
 FormatCraft is licensed under **MIT OR Apache-2.0**. Bundled FFmpeg binaries are GPL and are distributed as separate programs; see [`NOTICE`](NOTICE) and [`ATTRIBUTION.toml`](ATTRIBUTION.toml).
 
 FormatCraft is an independent project and is not affiliated with Format Factory or PCFreetime.
+
+## ⚠️ Disclaimer
+
+**Who builds this.** I am not a senior software developer. FormatCraft is developed with substantial help from AI coding agents: I set the direction, review the changes and test them, but the code has not been audited by professional engineers and may contain bugs, security weaknesses or design mistakes.
+
+**No warranty.** The software is provided "as is", without warranty of any kind, express or implied, including merchantability and fitness for a particular purpose. Use it at your own risk and keep backups of anything important.
+
+**Limitation of liability.** To the maximum extent permitted by applicable law, the author and contributors are not liable for any damage, data loss or other harm arising from the use of, or the inability to use, this software. Nothing here limits any liability that cannot be excluded by law. The binding terms are those of the licence (`LICENSE-MIT` / `LICENSE-APACHE`); this section summarises them and does not replace them.
+
+**Your responsibility.** You alone are responsible for how you use this software and for complying with the laws that apply to you. In particular:
+
+- **Copyright.** Only convert, rip or record content that you own or are otherwise allowed to use.
+- **Copy protection.** FormatCraft does not decrypt copy-protected discs (for example CSS-encrypted DVDs) and does not bundle any tool that does. Do not use or modify it to circumvent technical protection measures (DRM) where that is illegal, as it is in the EU, the US and many other countries.
+- **Third-party software.** Release packages include FFmpeg, a separate program under the GNU GPL with its own terms (see [`NOTICE`](NOTICE)).
+
+**Trademarks and affiliation.** "Format Factory" and "PCFreetime" are names of their respective owners and are used only to describe the features FormatCraft aims to be compatible with. FormatCraft is an independent project, not affiliated with, endorsed by or derived from Format Factory, PCFreetime, or the ArtCraft / storytold "Crafting Apps", whose public project conventions inspired this repository's structure.
